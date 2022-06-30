@@ -46,11 +46,13 @@ class LDAPFilterData
 public:
   LDAPFilterData()
     : ldapExpr()
-  {}
+  {
+  }
 
   LDAPFilterData(const std::string& filter)
     : ldapExpr(filter)
-  {}
+  {
+  }
 
   LDAPFilterData(const LDAPFilterData&) = default;
 
@@ -59,7 +61,8 @@ public:
 
 LDAPFilter::LDAPFilter()
   : d(nullptr)
-{}
+{
+}
 
 LDAPFilter::LDAPFilter(const std::string& filter)
   : d(nullptr)

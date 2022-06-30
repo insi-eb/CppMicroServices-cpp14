@@ -24,6 +24,7 @@
 
 #include <limits>
 #include <stdexcept>
+#include <unordered_set>
 #ifdef US_PLATFORM_WINDOWS
 #  include <string.h>
 #  define ci_compare strnicmp
@@ -32,106 +33,77 @@
 #  define ci_compare strncasecmp
 #endif
 
+#define WE_ARE_TESTING
+
+#if defined(WE_ARE_TESTING)
+#include <iostream>
+#endif
+
 US_MSVC_PUSH_DISABLE_WARNING(4996)
 
 namespace cppmicroservices {
 
-const Any Properties::emptyAny;
-
-Properties::Properties(AnyMap& p)
-  : props(p)
+namespace {
+struct any_set_cihash
 {
-  if (p.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
-    throw std::runtime_error("Properties contain too many keys");
+  std::size_t operator()(std::string_view key) const
+  {
+    std::string lcase(key);
+    std::transform(lcase.begin(), lcase.end(), lcase.begin(), ::tolower);
+    return std::hash<std::string_view>{}(std::string_view(lcase));
   }
+};
 
-  if (p.size() > 1) {
-    std::vector<std::string> keys;
-    for (auto& [key, _] : p) {
-      keys.emplace_back(key);
-    }
-
-    for (uint32_t i = 0; i < keys.size() - 1; ++i) {
-      for (uint32_t j = i + 1; j < keys.size(); ++j) {
-        if (keys[i].size() == keys[j].size() &&
-            ci_compare(keys[i].c_str(), keys[j].c_str(), keys[i].size()) == 0) {
-          std::string msg("Properties contain case variants of the key: ");
-          msg += keys[i];
-          throw std::runtime_error(msg.c_str());
-        }
-      }
-    }
+struct any_set_ciequal
+{
+  bool operator()(std::string_view l, std::string_view r) const
+  {
+    return (l.size() == r.size() &&
+            std::equal(l.begin(), l.end(), r.begin(), [](char a, char b) {
+              return tolower(a) == tolower(b);
+            }));
   }
-
-  /*
-  for (auto& iter : p) {
-    if (Find_unlocked(iter.first) > -1) {
-      std::string msg("Properties contain case variants of the key: ");
-      msg += iter.first;
-      throw std::runtime_error(msg.c_str());
-    }
-    keys.push_back(iter.first);
-    values.push_back(iter.second);
-  }
-  */
+};
 }
 
+using unordered_any_ciset =
+  std::unordered_set<std::string_view, any_set_cihash, any_set_ciequal>;
+
+const Any Properties::emptyAny;
+
 Properties::Properties(const AnyMap& p)
-  : props(const_cast<AnyMap&>(p))
+  : props(p)
 {
+  #if defined(WE_ARE_TESTING)
+  std::cerr << "Properties::AnyMap& called" << std::endl;
+  #endif
+
   if (p.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
     throw std::runtime_error("Properties contain too many keys");
   }
 
-  if (p.size() > 1) {
-    std::vector<std::string> keys;
-    for (auto& [key, _] : p) {
-      keys.emplace_back(key);
-    }
-
-    for (uint32_t i = 0; i < keys.size() - 1; ++i) {
-      for (uint32_t j = i + 1; j < keys.size(); ++j) {
-        if (keys[i].size() == keys[j].size() &&
-            ci_compare(keys[i].c_str(), keys[j].c_str(), keys[i].size()) == 0) {
-          std::string msg("Properties contain case variants of the key: ");
-          msg += keys[i];
-          throw std::runtime_error(msg.c_str());
-        }
-      }
-    }
-  }
+  Properties::ValidateProperties(p);
 }
 
 Properties::Properties(AnyMap&& p)
   : props(std::move(p))
 {
+  #if defined(WE_ARE_TESTING)
+  std::cerr << "Properties::AnyMap&& called" << std::endl;
+  #endif
+
   if (props.size() >
       static_cast<std::size_t>(std::numeric_limits<int>::max())) {
     throw std::runtime_error("Properties contain too many keys");
   }
 
-  if (props.size() > 1) {
-    std::vector<std::string> keys;
-    for (auto& [key, _] : props) {
-      keys.emplace_back(key);
-    }
-
-    for (uint32_t i = 0; i < keys.size() - 1; ++i) {
-      for (uint32_t j = i + 1; j < keys.size(); ++j) {
-        if (keys[i].size() == keys[j].size() &&
-            ci_compare(keys[i].c_str(), keys[j].c_str(), keys[i].size()) == 0) {
-          std::string msg("Properties contain case variants of the key: ");
-          msg += keys[i];
-          throw std::runtime_error(msg.c_str());
-        }
-      }
-    }
-  }
+  Properties::ValidateProperties(props);
 }
 
 Properties::Properties(Properties&& o)
   : props(std::move(o.props))
-{}
+{
+}
 
 Properties& Properties::operator=(Properties&& o)
 {
@@ -153,49 +125,7 @@ Any Properties::Value_unlocked(const std::string& key, bool* found) const
     *found = true;
   }
   return itr->second;
-  /*
-  int i = Find_unlocked(key);
-  if (i < 0) {
-    return emptyAny;
-  }
-  return values[i];
-  */
 }
-
-/*
-Any Properties::Value_unlocked(int index) const
-{
-  if (index < 0 || static_cast<std::size_t>(index) >= values.size()) {
-    return emptyAny;
-  }
-  return values[static_cast<std::size_t>(index)];
-}
-*/
-
-/*
-int Properties::Find_unlocked(const std::string& key) const
-{
-  for (std::size_t i = 0; i < keys.size(); ++i) {
-    if (key.size() == keys[i].size() &&
-        ci_compare(key.c_str(), keys[i].c_str(), key.size()) == 0) {
-      return static_cast<int>(i);
-    }
-  }
-  return -1;
-}
-*/
-
-/*
-int Properties::FindCaseSensitive_unlocked(const std::string& key) const
-{
-  for (std::size_t i = 0; i < keys.size(); ++i) {
-    if (key == keys[i]) {
-      return static_cast<int>(i);
-    }
-  }
-  return -1;
-}
-*/
 
 std::vector<std::string> Properties::Keys_unlocked() const
 {
@@ -204,18 +134,23 @@ std::vector<std::string> Properties::Keys_unlocked() const
     result.push_back(key);
   }
   return result;
-  /*
-  return keys;
-  */
 }
 
 void Properties::Clear_unlocked()
 {
   props.clear();
-  /*
-  keys.clear();
-  values.clear();
-  */
+}
+
+void Properties::ValidateProperties(const AnyMap& props)
+{
+  unordered_any_ciset keys;
+  for (auto& [key, _] : props) {
+    if (keys.insert(std::string_view(key)).second == false) {
+      std::string msg("Properties contain case variants of the key: ");
+      msg += key;
+      throw std::runtime_error(msg.c_str());
+    }
+  }
 }
 }
 
