@@ -72,7 +72,7 @@ Properties ServiceRegistry::CreateServiceProperties(
       std::make_pair(Constants::SERVICE_SCOPE, Constants::SCOPE_SINGLETON));
   }
 
-  return Properties(std::move(AnyMap(std::move(props))));
+  return Properties(AnyMap(std::move(props)));
 }
 
 ServiceRegistry::ServiceRegistry(CoreBundleContext* coreCtx)

@@ -115,7 +115,7 @@ inline InvalidEntry IsInvalid(const AnyMap& am)
     }
   }
 
-  return { false };
+  return { false, "" };
 }
 }
 
