@@ -98,7 +98,6 @@ public:
         return *this;
     }
     void set_pattern(std::string pattern);
-    void need_localtime(bool need = true);
 
 private:
     std::string pattern_;
