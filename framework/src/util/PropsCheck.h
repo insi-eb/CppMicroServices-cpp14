@@ -37,7 +37,6 @@
 #define PROPSCHECK_H
 
 #include <stdexcept>
-#include <string_view>
 #include <unordered_set>
 #include <utility>
 #include <vector>
