@@ -62,7 +62,7 @@ Changed
 - `[Core Framework] Remove manual ref counting for BundleResource <https://github.com/CppMicroServices/CppMicroServices/pull/695>`_
 - `Add ignore for 3rdparty code for MSVC code analysis <https://github.com/CppMicroServices/CppMicroServices/pull/692>`_
 - `[Core Framework/Declarative Services] Add log messages when shared library loading throws an exception <https://github.com/CppMicroServices/CppMicroServices/pull/690>`_
-
+- `Only run certain BundleContextTests if threading support is enabled <https://github.com/CppMicroServices/CppMicroServices/pull/669>`_
 
 Removed
 -------
