@@ -39,7 +39,8 @@ namespace cppmicroservices
         SCRExtensionRegistry::Find(long bundleId) noexcept
         {
             std::lock_guard<std::mutex> l(extensionRegMutex);
-            if (auto const& it = extensionRegistry.find(bundleId); it != extensionRegistry.end())
+            auto const& it = extensionRegistry.find(bundleId);
+            if (it != extensionRegistry.end())
             {
                 return it->second;
             }
