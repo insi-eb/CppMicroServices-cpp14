@@ -305,8 +305,15 @@ namespace cppmicroservices
          * @see ServiceFactory
          * @see PrototypeServiceFactory
          */
-        [[nodiscard]] ServiceRegistrationU RegisterService(InterfaceMapConstPtr const& service,
-                                                           ServiceProperties const& properties = ServiceProperties());
+#ifdef __has_cpp_attribute
+#    if __has_cpp_attribute(nodiscard)
+        [[nodiscard]]
+#    elif __has_cpp_attribute(gnu::warn_unused_result)
+        [[gnu::warn_unused_result]]
+#    endif
+#endif
+        ServiceRegistrationU
+        RegisterService(InterfaceMapConstPtr const& service, ServiceProperties const& properties = ServiceProperties());
 
         /**
          * Registers the specified service object with the specified properties
