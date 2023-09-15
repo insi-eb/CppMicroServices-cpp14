@@ -35,7 +35,7 @@
 #ifndef ABSL_TYPES_OPTIONAL_H_
 #define ABSL_TYPES_OPTIONAL_H_
 
-#include "absl/base/config.h"  // TODO(calabrese) IWYU removal?
+#include "absl/base/config.h"   // TODO(calabrese) IWYU removal?
 #include "absl/utility/utility.h"
 
 #ifdef ABSL_USES_STD_OPTIONAL
@@ -45,10 +45,10 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 using std::bad_optional_access;
-using std::make_optional;
-using std::nullopt;
-using std::nullopt_t;
 using std::optional;
+using std::make_optional;
+using std::nullopt_t;
+using std::nullopt;
 ABSL_NAMESPACE_END
 }  // namespace absl
 
@@ -130,7 +130,7 @@ class optional : private optional_internal::optional_data<T>,
 
   // Constructs an `optional` holding an empty value, NOT a default constructed
   // `T`.
-  constexpr optional() noexcept {}
+  constexpr optional() noexcept = default;
 
   // Constructs an `optional` initialized with `nullopt` to hold an empty value.
   constexpr optional(nullopt_t) noexcept {}  // NOLINT(runtime/explicit)
@@ -161,7 +161,8 @@ class optional : private optional_internal::optional_data<T>,
                 T, std::initializer_list<U>&, Args&&...>::value>::type>
   constexpr explicit optional(in_place_t, std::initializer_list<U> il,
                               Args&&... args)
-      : data_base(in_place_t(), il, absl::forward<Args>(args)...) {}
+      : data_base(in_place_t(), il, absl::forward<Args>(args)...) {
+  }
 
   // Value constructor (implicit)
   template <
@@ -181,11 +182,11 @@ class optional : private optional_internal::optional_data<T>,
       typename U = T,
       typename std::enable_if<
           absl::conjunction<absl::negation<std::is_same<
-                                in_place_t, typename std::decay<U>::type> >,
+                                in_place_t, typename std::decay<U>::type>>,
                             absl::negation<std::is_same<
-                                optional<T>, typename std::decay<U>::type> >,
-                            absl::negation<std::is_convertible<U&&, T> >,
-                            std::is_constructible<T, U&&> >::value,
+                                optional<T>, typename std::decay<U>::type>>,
+                            absl::negation<std::is_convertible<U&&, T>>,
+                            std::is_constructible<T, U&&>>::value,
           bool>::type = false>
   explicit constexpr optional(U&& v)
       : data_base(in_place_t(), absl::forward<U>(v)) {}
@@ -211,12 +212,12 @@ class optional : private optional_internal::optional_data<T>,
   template <typename U,
             typename std::enable_if<
                 absl::conjunction<
-                    absl::negation<std::is_same<T, U> >,
+                    absl::negation<std::is_same<T, U>>,
                     std::is_constructible<T, const U&>,
                     absl::negation<
                         optional_internal::
-                            is_constructible_convertible_from_optional<T, U> >,
-                    absl::negation<std::is_convertible<const U&, T> > >::value,
+                            is_constructible_convertible_from_optional<T, U>>,
+                    absl::negation<std::is_convertible<const U&, T>>>::value,
                 bool>::type = false>
   explicit optional(const optional<U>& rhs) {
     if (rhs) {
@@ -242,16 +243,16 @@ class optional : private optional_internal::optional_data<T>,
   }
 
   // Converting move constructor (explicit)
-  template <typename U,
-            typename std::enable_if<
-                absl::conjunction<
-                    absl::negation<std::is_same<T, U> >,
-                    std::is_constructible<T, U&&>,
-                    absl::negation<
-                        optional_internal::
-                            is_constructible_convertible_from_optional<T, U> >,
-                    absl::negation<std::is_convertible<U&&, T> > >::value,
-                bool>::type = false>
+  template <
+      typename U,
+      typename std::enable_if<
+          absl::conjunction<
+              absl::negation<std::is_same<T, U>>, std::is_constructible<T, U&&>,
+              absl::negation<
+                  optional_internal::is_constructible_convertible_from_optional<
+                      T, U>>,
+              absl::negation<std::is_convertible<U&&, T>>>::value,
+          bool>::type = false>
   explicit optional(optional<U>&& rhs) {
     if (rhs) {
       this->construct(std::move(*rhs));
@@ -356,7 +357,7 @@ class optional : private optional_internal::optional_data<T>,
   template <typename... Args,
             typename = typename std::enable_if<
                 std::is_constructible<T, Args&&...>::value>::type>
-  T& emplace(Args&&... args) {
+  T& emplace(Args&&... args) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     this->destruct();
     this->construct(std::forward<Args>(args)...);
     return reference();
@@ -376,7 +377,8 @@ class optional : private optional_internal::optional_data<T>,
   template <typename U, typename... Args,
             typename = typename std::enable_if<std::is_constructible<
                 T, std::initializer_list<U>&, Args&&...>::value>::type>
-  T& emplace(std::initializer_list<U> il, Args&&... args) {
+  T& emplace(std::initializer_list<U> il,
+             Args&&... args) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     this->destruct();
     this->construct(il, std::forward<Args>(args)...);
     return reference();
@@ -413,11 +415,11 @@ class optional : private optional_internal::optional_data<T>,
   // `optional` is empty, behavior is undefined.
   //
   // If you need myOpt->foo in constexpr, use (*myOpt).foo instead.
-  const T* operator->() const {
+  const T* operator->() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
     ABSL_HARDENING_ASSERT(this->engaged_);
     return std::addressof(this->data_);
   }
-  T* operator->() {
+  T* operator->() ABSL_ATTRIBUTE_LIFETIME_BOUND {
     ABSL_HARDENING_ASSERT(this->engaged_);
     return std::addressof(this->data_);
   }
@@ -426,17 +428,17 @@ class optional : private optional_internal::optional_data<T>,
   //
   // Accesses the underlying `T` value of an `optional`. If the `optional` is
   // empty, behavior is undefined.
-  constexpr const T& operator*() const& {
+  constexpr const T& operator*() const& ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return ABSL_HARDENING_ASSERT(this->engaged_), reference();
   }
-  T& operator*() & {
+  T& operator*() & ABSL_ATTRIBUTE_LIFETIME_BOUND {
     ABSL_HARDENING_ASSERT(this->engaged_);
     return reference();
   }
-  constexpr const T&& operator*() const&& {
+  constexpr const T&& operator*() const&& ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return ABSL_HARDENING_ASSERT(this->engaged_), absl::move(reference());
   }
-  T&& operator*() && {
+  T&& operator*() && ABSL_ATTRIBUTE_LIFETIME_BOUND {
     ABSL_HARDENING_ASSERT(this->engaged_);
     return std::move(reference());
   }
@@ -471,23 +473,24 @@ class optional : private optional_internal::optional_data<T>,
   // and lvalue/rvalue-ness of the `optional` is preserved to the view of
   // the `T` sub-object. Throws `absl::bad_optional_access` when the `optional`
   // is empty.
-  constexpr const T& value() const& {
+  constexpr const T& value() const& ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return static_cast<bool>(*this)
                ? reference()
                : (optional_internal::throw_bad_optional_access(), reference());
   }
-  T& value() & {
+  T& value() & ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return static_cast<bool>(*this)
                ? reference()
                : (optional_internal::throw_bad_optional_access(), reference());
   }
-  T&& value() && {  // NOLINT(build/c++11)
+  T&& value() && ABSL_ATTRIBUTE_LIFETIME_BOUND {  // NOLINT(build/c++11)
     return std::move(
         static_cast<bool>(*this)
             ? reference()
             : (optional_internal::throw_bad_optional_access(), reference()));
   }
-  constexpr const T&& value() const&& {  // NOLINT(build/c++11)
+  constexpr const T&& value()
+      const&& ABSL_ATTRIBUTE_LIFETIME_BOUND {  // NOLINT(build/c++11)
     return absl::move(
         static_cast<bool>(*this)
             ? reference()
@@ -507,8 +510,9 @@ class optional : private optional_internal::optional_data<T>,
                   "optional<T>::value_or: T must be copy constructible");
     static_assert(std::is_convertible<U&&, value_type>::value,
                   "optional<T>::value_or: U must be convertible to T");
-    return static_cast<bool>(*this) ? **this
-                                    : static_cast<T>(absl::forward<U>(v));
+    return static_cast<bool>(*this)
+               ? **this
+               : static_cast<T>(absl::forward<U>(v));
   }
   template <typename U>
   T value_or(U&& v) && {  // NOLINT(build/c++11)
@@ -579,7 +583,8 @@ constexpr optional<T> make_optional(Args&&... args) {
 template <typename T, typename U, typename... Args>
 constexpr optional<T> make_optional(std::initializer_list<U> il,
                                     Args&&... args) {
-  return optional<T>(in_place_t(), il, absl::forward<Args>(args)...);
+  return optional<T>(in_place_t(), il,
+                     absl::forward<Args>(args)...);
 }
 
 // Relational operators [optional.relops]
@@ -599,9 +604,10 @@ constexpr optional<T> make_optional(std::initializer_list<U> il,
 template <typename T, typename U>
 constexpr auto operator==(const optional<T>& x, const optional<U>& y)
     -> decltype(optional_internal::convertible_to_bool(*x == *y)) {
-  return static_cast<bool>(x) != static_cast<bool>(y) ? false
-         : static_cast<bool>(x) == false              ? true
-                                         : static_cast<bool>(*x == *y);
+  return static_cast<bool>(x) != static_cast<bool>(y)
+             ? false
+             : static_cast<bool>(x) == false ? true
+                                             : static_cast<bool>(*x == *y);
 }
 
 // Returns: If bool(x) != bool(y), true; otherwise, if bool(x) == false, false;
@@ -609,9 +615,10 @@ constexpr auto operator==(const optional<T>& x, const optional<U>& y)
 template <typename T, typename U>
 constexpr auto operator!=(const optional<T>& x, const optional<U>& y)
     -> decltype(optional_internal::convertible_to_bool(*x != *y)) {
-  return static_cast<bool>(x) != static_cast<bool>(y) ? true
-         : static_cast<bool>(x) == false              ? false
-                                         : static_cast<bool>(*x != *y);
+  return static_cast<bool>(x) != static_cast<bool>(y)
+             ? true
+             : static_cast<bool>(x) == false ? false
+                                             : static_cast<bool>(*x != *y);
 }
 // Returns: If !y, false; otherwise, if !x, true; otherwise *x < *y.
 template <typename T, typename U>
